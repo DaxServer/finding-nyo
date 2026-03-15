@@ -96,4 +96,4 @@ for (const stop of rows) {
 }
 
 console.log("\nDone.");
-await sql.end();
+if (import.meta.main) await sql.end();

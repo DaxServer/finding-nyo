@@ -151,4 +151,4 @@ await insertStops(rows);
 
 const count = await sql`SELECT COUNT(*) FROM stops`;
 console.log(`stops table now has ${count[0].count} rows`);
-await sql.end();
+if (import.meta.main) await sql.end();

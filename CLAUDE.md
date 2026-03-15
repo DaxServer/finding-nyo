@@ -90,3 +90,5 @@ bun scripts/fetch-stop-images.ts    # Mapillary images (sequential, resumable)
 - **Leaflet CSS**: Must be a static file (`/leaflet.css` copied from `node_modules` in `build-frontend.ts`). Do NOT `import "leaflet/dist/leaflet.css"` in JS — bun bundles it as a JS-injected style tag which fires after ResizeObserver, breaking map initialization.
 - **Tailwind v4 buttons**: v4 Preflight removed `cursor: pointer` from buttons. Override in `frontend/styles.css` via `@layer base { button { cursor: pointer; } }`.
 - **Elysia 404**: Use `return status(404, payload)` (from handler context) — not `set.status`. `return` skips `onError`; `throw` goes through it.
+- **PostGIS search_path**: If the DB role's `search_path` doesn't include `public`, `geography` type won't resolve even after `CREATE EXTENSION postgis` succeeds. Configure `search_path` at the role level (e.g. in OpenTofu) to include `public`.
+- **`sql.end()` in ingest scripts**: Ends the shared `Bun.sql` pool — fatal when scripts are `await import()`-ed sequentially by `ingest-all.ts`. Use `if (import.meta.main) await sql.end()` in each script.
