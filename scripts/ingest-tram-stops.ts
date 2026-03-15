@@ -141,4 +141,4 @@ const s = stats[0]!;
 console.log(`Distances computed for ${s.computed} stops`);
 console.log(`  min=${s.min_m}m  avg=${s.avg_m}m  max=${s.max_m}m`);
 
-await sql.end();
+if (import.meta.main) await sql.end();
