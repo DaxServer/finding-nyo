@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:data.delijn.be)",
+      "WebFetch(domain:www.transportdata.be)",
+      "Bash(bunx tsc:*)",
+      "Bash(bun run:*)",
+      "Bash(docker compose:*)",
+      "Bash(unzip:*)",
+      "Bash(agent-browser:*)",
+      "Bash(but status:*)",
+      "Bash(but commit:*)"
+    ]
+  }
+}

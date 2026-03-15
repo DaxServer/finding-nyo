@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Determine Bun version
+        id: determine-bun-version
+        run: echo "BUN_VERSION=$(jq -r '.engines.bun' package.json)" >> $GITHUB_OUTPUT
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ steps.determine-bun-version.outputs.BUN_VERSION }}
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun typecheck
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Determine Bun version
+        id: determine-bun-version
+        run: echo "BUN_VERSION=$(jq -r '.engines.bun' package.json)" >> $GITHUB_OUTPUT
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ steps.determine-bun-version.outputs.BUN_VERSION }}
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun lint
