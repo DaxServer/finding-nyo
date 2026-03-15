@@ -59,7 +59,12 @@ Indexes: `stops_location_idx` (GIST), `stop_images_stop_id_idx` (btree).
 
 ## Data Ingestion (one-time setup)
 
-Run in order:
+Run all at once (or use as a K8s init pod: `command: ["bun", "scripts/ingest-all.ts"]`):
+```bash
+bun run ingest
+```
+
+Or individually in order:
 ```bash
 bun scripts/ingest-stops.ts         # ~30k stops from GTFS
 bun scripts/ingest-tram-stops.ts    # tram subset + nearest_tram_stop_m
@@ -82,3 +87,6 @@ bun scripts/fetch-stop-images.ts    # Mapillary images (sequential, resumable)
 - **Elysia static cache**: The static plugin sets `Cache-Control: max-age=86400`. A browser close/reopen is needed to pick up a new build during development.
 - **`Bun.sql` array params**: Use `{${ids.join(",")}}::text[]` syntax — tagged template literals don't serialize JS arrays as Postgres array literals.
 - **`noUncheckedIndexedAccess`**: Enabled in tsconfig. Array access returns `T | undefined`; use `arr[0]?.prop ?? fallback`.
+- **Leaflet CSS**: Must be a static file (`/leaflet.css` copied from `node_modules` in `build-frontend.ts`). Do NOT `import "leaflet/dist/leaflet.css"` in JS — bun bundles it as a JS-injected style tag which fires after ResizeObserver, breaking map initialization.
+- **Tailwind v4 buttons**: v4 Preflight removed `cursor: pointer` from buttons. Override in `frontend/styles.css` via `@layer base { button { cursor: pointer; } }`.
+- **Elysia 404**: Use `return status(404, payload)` (from handler context) — not `set.status`. `return` skips `onError`; `throw` goes through it.

@@ -70,7 +70,8 @@ async function fetchImages(stop: StopCoord): Promise<void> {
       }
       await tx`UPDATE stops SET images_fetched = TRUE WHERE stop_id = ${stop_id}`;
     });
-  } catch {
+  } catch (e) {
+    console.error(`\nFailed to fetch images for stop ${stop_id}:`, e);
     // Leave images_fetched = FALSE so this stop will be retried on next run
   }
 }
@@ -91,7 +92,7 @@ let done = 0;
 for (const stop of rows) {
   await fetchImages(stop);
   done++;
-  process.stdout.write(`\r  ${done}/${total}`);
+  process.stdout.write(`\n  ${done}/${total}`);
 }
 
 console.log("\nDone.");

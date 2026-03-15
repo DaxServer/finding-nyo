@@ -22,7 +22,8 @@
     "build": "bun run build-frontend.ts",
     "start": "bun run build && bun server.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "ingest": "bun scripts/ingest-all.ts"
   },
   "dependencies": {
     "@eckidevs/bun-plugin-vue": "^0.3.0",
