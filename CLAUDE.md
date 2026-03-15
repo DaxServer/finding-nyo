@@ -6,13 +6,17 @@ A Tinder-style swipe game that helps identify a De Lijn bus stop from a photo. T
 
 ```bash
 bun run dev          # Start server with hot reload (port 3000)
-bun run build        # Compile Vue frontend → public/
+bun run build        # Compile Vue frontend → public/ (bun-plugin-vue + tailwindcss CLI → public/styles.css)
 bun run start        # Build + start server (production)
 bun run typecheck    # tsc --noEmit
 bun run lint         # eslint .
 ```
 
 After frontend changes, rebuild manually: `bun run build`, then hard-refresh the browser (Elysia static serves with `max-age=86400`).
+
+## Tailwind CSS
+
+Tailwind v4 is compiled via `@tailwindcss/cli` at build time. Input: `frontend/styles.css` (`@import "tailwindcss"`). Output: `public/styles.css` (only used classes, ~12KB). Do not use the Play CDN — it shows a production warning and injects styles async.
 
 ## Architecture
 
@@ -28,6 +32,7 @@ frontend/
   api.ts                         # Eden treaty<App> typed client
   App.vue                        # Screen router: setup → game → results
   components/
+    AppHeader.vue                # Shared header: "Finding Nyo" branding + optional `right` prop (stop name, progress)
     SetupScreen.vue              # Leaflet map, pin + radius, tram slider, Start
     GameScreen.vue               # 2×2 photos + mini-map + N/Y keyboard controls
     ResultsScreen.vue            # Matched stop name + Start Over
@@ -72,7 +77,7 @@ bun scripts/fetch-stop-images.ts    # Mapillary images (sequential, resumable)
 
 ## Gotchas
 
-- **Leaflet + Tailwind CDN**: Tailwind injects styles asynchronously, so the map container has `height: 0` at mount time. `useInitOnResize` uses a `ResizeObserver` to defer `L.map()` until the wrapper has a real height, then explicitly sets `mapEl.style.height` in pixels before initializing.
+- **Leaflet init timing**: The map container must have a non-zero height before `L.map()` is called. `useInitOnResize` uses a `ResizeObserver` to defer init until the wrapper has a real height, then explicitly sets `mapEl.style.height` in pixels before initializing.
 - **`bun-plugin-vue` static hoisting**: Vue refs on `<div ref="x">` inside static subtrees can point to the wrong element. Ensure the ref target is not hoisted by making it dynamic or a direct child of a dynamic parent.
 - **Elysia static cache**: The static plugin sets `Cache-Control: max-age=86400`. A browser close/reopen is needed to pick up a new build during development.
 - **`Bun.sql` array params**: Use `{${ids.join(",")}}::text[]` syntax — tagged template literals don't serialize JS arrays as Postgres array literals.

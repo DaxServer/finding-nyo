@@ -10,7 +10,8 @@
       "Bash(unzip:*)",
       "Bash(agent-browser:*)",
       "Bash(but status:*)",
-      "Bash(but commit:*)"
+      "Bash(but commit:*)",
+      "Bash(but stage:*)"
     ]
   }
 }

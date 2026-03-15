@@ -10,5 +10,7 @@ await Bun.build({
   minify: false,
 });
 
+await Bun.$`bunx tailwindcss -i frontend/styles.css -o public/styles.css`;
+
 await copyFile("frontend/index.html", "public/index.html");
 console.log("Build complete → public/");

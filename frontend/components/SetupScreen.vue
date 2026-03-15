@@ -1,5 +1,8 @@
 <template>
   <div class="h-screen flex flex-col">
+    <!-- Title -->
+    <AppHeader />
+
     <!-- Map -->
     <div ref="mapWrapEl" class="flex-1 relative">
       <div ref="mapEl" class="w-full h-full" />
@@ -52,6 +55,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from "vue";
+import AppHeader from "./AppHeader.vue";
 import L from "leaflet";
 import { api } from "../api";
 import { useInitOnResize } from "../composables/useInitOnResize";

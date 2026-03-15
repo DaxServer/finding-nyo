@@ -1,10 +1,6 @@
 <template>
   <div class="h-screen flex flex-col overflow-hidden">
-    <!-- Header -->
-    <div class="bg-gray-800 px-4 py-2 flex items-center justify-between shrink-0">
-      <span class="font-semibold text-lg">{{ stopName }}</span>
-      <span class="text-gray-400 text-sm">{{ currentIndex + 1 }} / {{ queue.length }}</span>
-    </div>
+    <AppHeader :right="`${stopName} · ${currentIndex + 1} / ${queue.length}`" />
 
     <!-- Main content: photos + mini-map -->
     <div class="flex flex-1 overflow-hidden">
@@ -63,6 +59,7 @@ import { ref, watch, onUnmounted } from "vue";
 import L from "leaflet";
 import { api } from "../api";
 import { useInitOnResize } from "../composables/useInitOnResize";
+import AppHeader from "./AppHeader.vue";
 
 const props = defineProps<{ queue: string[] }>();
 const emit = defineEmits<{ done: [matchedIds: string[]] }>();
