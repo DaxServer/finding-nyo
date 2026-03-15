@@ -90,8 +90,17 @@ function parseCsv(csv: string): StopRow[] {
 }
 
 async function createSchema(): Promise<void> {
+  const [dbInfo] = await sql`
+    SELECT current_database() AS db, inet_server_addr() AS host, inet_server_port() AS port, version() AS pg_version
+  ` as [{ db: string; host: string; port: number; pg_version: string }];
+  const [schemaInfo] = await sql`SELECT current_schema() AS schema` as [{ schema: string }];
+  console.log(`Connected to: ${dbInfo?.host}:${dbInfo?.port}/${dbInfo?.db} (schema: ${schemaInfo?.schema})`);
+  console.log(`PostgreSQL: ${dbInfo?.pg_version}`);
+
   console.log("Creating schema ...");
+  console.log("  Enabling PostGIS extension ...");
   await sql`CREATE EXTENSION IF NOT EXISTS postgis`;
+  console.log("  PostGIS extension OK");
   await sql`
     CREATE TABLE IF NOT EXISTS stops (
       stop_id   TEXT PRIMARY KEY,
@@ -100,9 +109,11 @@ async function createSchema(): Promise<void> {
       location  GEOGRAPHY(POINT, 4326) NOT NULL
     )
   `;
+  console.log("  stops table OK");
   await sql`
     CREATE INDEX IF NOT EXISTS stops_location_idx ON stops USING GIST (location)
   `;
+  console.log("  stops_location_idx OK");
 }
 
 async function insertStops(rows: StopRow[]): Promise<void> {
