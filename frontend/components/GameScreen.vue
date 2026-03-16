@@ -1,19 +1,19 @@
 <template>
   <div class="h-screen flex flex-col overflow-hidden">
-    <AppHeader :right="`${currentIndex + 1} / ${queue.length}`" :subtitle="stopName" />
+    <AppHeader :right="`${currentIndex + 1} / ${queue.length}`" :location="stopName" />
 
-    <!-- Scrollable content -->
-    <div class="flex-1 overflow-y-auto bg-gray-900">
-      <!-- Images stacked vertically -->
-      <div class="flex flex-col gap-1 p-1">
+    <!-- Content: scrollable column on mobile, side-by-side row on desktop -->
+    <div class="flex-1 flex flex-col overflow-y-auto sm:flex-row sm:overflow-hidden bg-gray-900">
+      <!-- Images: stacked on mobile, 2×2 grid on desktop -->
+      <div class="flex flex-col gap-1 p-1 sm:flex-1 sm:grid sm:grid-cols-2 sm:grid-rows-2">
         <div
           v-for="(img, i) in images"
           :key="i"
-          class="relative"
+          class="relative overflow-hidden bg-gray-700"
         >
           <img
             :src="img.url"
-            class="w-full aspect-video object-cover"
+            class="w-full aspect-video sm:aspect-auto sm:h-full object-cover"
             :alt="`Street view ${i + 1}`"
           >
           <span class="absolute bottom-1 right-1 bg-black/60 text-xs px-1 rounded">
@@ -24,14 +24,14 @@
         <div
           v-for="i in Math.max(0, 4 - images.length)"
           :key="`ph-${i}`"
-          class="aspect-video bg-gray-700 flex items-center justify-center text-gray-500 text-sm"
+          class="aspect-video sm:aspect-auto bg-gray-700 flex items-center justify-center text-gray-500 text-sm"
         >
           No image
         </div>
       </div>
 
-      <!-- Mini-map at bottom of content -->
-      <div ref="miniMapWrapEl" class="h-48 mt-1 bg-gray-800">
+      <!-- Mini-map: bottom of scroll on mobile, sidebar on desktop -->
+      <div ref="miniMapWrapEl" class="h-48 mt-1 sm:mt-0 sm:h-auto sm:w-64 sm:shrink-0 bg-gray-800">
         <div ref="miniMapEl" class="w-full h-full" />
       </div>
     </div>

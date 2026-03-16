@@ -32,7 +32,7 @@ frontend/
   api.ts                         # Eden treaty<App> typed client
   App.vue                        # Screen router: setup → game → results
   components/
-    AppHeader.vue                # Shared header: "Finding Nyo" branding + optional `right` prop (stop name, progress)
+    AppHeader.vue                # Shared header: "Finding Nyo" branding + optional `right` prop (counter) and `location` prop (shown beside `right` on desktop, on row 2 on mobile)
     SetupScreen.vue              # Leaflet map, pin + radius, tram slider, Start
     GameScreen.vue               # 2×2 photos + mini-map + N/Y keyboard controls
     ResultsScreen.vue            # Matched stop name + Start Over
@@ -84,7 +84,7 @@ bun scripts/fetch-stop-images.ts    # Mapillary images (sequential, resumable)
 
 - **Leaflet init timing**: The map container must have a non-zero height before `L.map()` is called. `useInitOnResize` uses a `ResizeObserver` to defer init until the wrapper has a real height, then explicitly sets `mapEl.style.height` in pixels before initializing.
 - **`bun-plugin-vue` static hoisting**: Vue refs on `<div ref="x">` inside static subtrees can point to the wrong element. Ensure the ref target is not hoisted by making it dynamic or a direct child of a dynamic parent.
-- **Elysia static cache**: The static plugin sets `Cache-Control: max-age=86400`. A browser close/reopen is needed to pick up a new build during development.
+- **Elysia static cache**: The static plugin sets `Cache-Control: max-age=86400`. The JS bundle (`main.js`) is cached — Vue component changes won't appear even after rebuild until cache is bypassed. Use a cache-busting URL (`?v=N`) or close the browser session entirely. Hard refresh alone is not enough.
 - **`Bun.sql` array params**: Use `{${ids.join(",")}}::text[]` syntax — tagged template literals don't serialize JS arrays as Postgres array literals.
 - **`noUncheckedIndexedAccess`**: Enabled in tsconfig. Array access returns `T | undefined`; use `arr[0]?.prop ?? fallback`.
 - **Leaflet CSS**: Must be a static file (`/leaflet.css` copied from `node_modules` in `build-frontend.ts`). Do NOT `import "leaflet/dist/leaflet.css"` in JS — bun bundles it as a JS-injected style tag which fires after ResizeObserver, breaking map initialization.
@@ -98,3 +98,4 @@ bun scripts/fetch-stop-images.ts    # Mapillary images (sequential, resumable)
 - **Leaflet.markercluster CSS**: `MarkerCluster.css` and `MarkerCluster.Default.css` must be copied as static files in `build-frontend.ts` and linked in `index.html` (same pattern as `leaflet.css`).
 - **Leaflet.markercluster import**: `import "leaflet.markercluster"` augments `L` with `L.markerClusterGroup()` / `L.MarkerClusterGroup`.
 - **Vue reactivity and plain `let` variables**: `computed` and `watch` don't track plain module-level `let` variables (e.g. `let allLocations: Location[] = []`). Use a `ref` flag (e.g. `locationsLoaded = ref(false)`) to signal when non-reactive data has been populated.
+- **Leaflet initial map view**: Use `map.fitBounds(L.latLngBounds(locations.map(l => [l.lat, l.lng])), { padding: [20, 20] })` to fit data rather than hardcoding a `setView` lat/lng/zoom.
