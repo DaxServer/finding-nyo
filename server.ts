@@ -3,6 +3,7 @@ import staticPlugin from "@elysiajs/static";
 import { queueRoute } from "./src/routes/queue";
 import { stopRoute } from "./src/routes/stop";
 import { imagesRoute } from "./src/routes/images";
+import { locationsRoute } from "./src/routes/locations";
 
 export const app = new Elysia()
   .use(staticPlugin({ assets: "public", prefix: "/" }))
@@ -10,6 +11,7 @@ export const app = new Elysia()
   .use(queueRoute)
   .use(stopRoute)
   .use(imagesRoute)
+  .use(locationsRoute)
   .listen(3000);
 
 export type App = typeof app;
