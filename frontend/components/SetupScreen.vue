@@ -11,7 +11,7 @@
     <!-- Controls -->
     <div class="bg-gray-800 p-4 flex flex-col gap-3">
       <div class="flex items-center gap-4">
-        <label class="text-sm text-gray-300 w-64">
+        <label class="text-sm text-gray-300 shrink-0 w-36">
           Radius: {{ (radiusM / 1000).toFixed(1) }} km
         </label>
         <input
@@ -24,7 +24,7 @@
         >
       </div>
       <div class="flex items-center gap-4">
-        <label class="text-sm text-gray-300 w-64">
+        <label class="text-sm text-gray-300 shrink-0 w-36">
           Min tram dist: {{ minTramM }} m
         </label>
         <input
@@ -36,24 +36,26 @@
           class="flex-1"
         >
       </div>
-      <div class="flex items-center gap-4">
-        <span class="text-sm text-gray-400 flex-1">
+      <div class="flex flex-wrap items-center gap-3">
+        <span class="text-sm text-gray-400 flex-1 min-w-0">
           {{ pin ? `Pin: ${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)}` : "Click the map to place a pin" }}
         </span>
-        <button
-          class="px-6 py-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-40 disabled:cursor-not-allowed rounded font-semibold"
-          :disabled="!pin && radiusM === 10000 && minTramM === 100"
-          @click="reset"
-        >
-          Reset
-        </button>
-        <button
-          class="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed rounded font-semibold"
-          :disabled="!pin || loading || (!!pin && stopCount === 0)"
-          @click="startGame"
-        >
-          {{ loading ? "Loading…" : "Start" }}
-        </button>
+        <div class="flex gap-3 shrink-0">
+          <button
+            class="px-6 py-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-40 disabled:cursor-not-allowed rounded font-semibold"
+            :disabled="!pin && radiusM === 10000 && minTramM === 100"
+            @click="reset"
+          >
+            Reset
+          </button>
+          <button
+            class="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed rounded font-semibold"
+            :disabled="!pin || loading || (!!pin && stopCount === 0)"
+            @click="startGame"
+          >
+            {{ loading ? "Loading…" : "Start" }}
+          </button>
+        </div>
       </div>
       <p v-if="error" class="text-red-400 text-sm">{{ error }}</p>
     </div>
@@ -144,6 +146,7 @@ useInitOnResize(
     clusterGroup = L.markerClusterGroup({ chunkedLoading: true });
     refreshCluster();
     clusterGroup.addTo(map);
+    fitAll();
   },
 );
 
@@ -169,12 +172,18 @@ watch([pin, radiusM], ([p, r]) => {
 
 watch([pin, radiusM, minTramM], refreshCluster);
 
+function fitAll() {
+  if (!map || allLocations.length === 0) return;
+  const bounds = L.latLngBounds(allLocations.map((loc) => [loc.lat, loc.lng] as [number, number]));
+  map.fitBounds(bounds, { padding: [20, 20] });
+}
+
 function reset() {
   pin.value = null;
   radiusM.value = 10000;
   minTramM.value = 100;
   error.value = "";
-  map?.setView([51.0, 4.3], 9);
+  fitAll();
 }
 
 async function startGame() {
