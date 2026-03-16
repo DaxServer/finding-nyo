@@ -72,14 +72,16 @@ async function fetchAndStoreImages(stopId: number, lat: number, lng: number, log
     return []
   }
 
-  for (const img of images) {
-    await sql`
-      INSERT INTO stop_images (stop_id, mapillary_image_id, url, distance_m, fetched_at)
-      VALUES (${stopId}, ${img.mapillary_image_id}, ${img.url}, ${img.distance_m}, NOW())
-      ON CONFLICT (stop_id, mapillary_image_id) DO UPDATE
-        SET url = EXCLUDED.url, distance_m = EXCLUDED.distance_m, fetched_at = NOW()
-    `
-  }
+  await sql.begin(async (tx) => {
+    for (const img of images) {
+      await tx`
+        INSERT INTO stop_images (stop_id, mapillary_image_id, url, distance_m, fetched_at)
+        VALUES (${stopId}, ${img.mapillary_image_id}, ${img.url}, ${img.distance_m}, NOW())
+        ON CONFLICT (stop_id, mapillary_image_id) DO UPDATE
+          SET url = EXCLUDED.url, distance_m = EXCLUDED.distance_m, fetched_at = NOW()
+      `
+    }
+  })
 
   log.info(`stop ${stopId}: stored ${images.length} images`)
   return images
