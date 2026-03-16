@@ -74,6 +74,10 @@ const miniMapWrapEl = ref<HTMLDivElement | null>(null);
 let miniMap: L.Map | null = null;
 let stopMarker: L.Marker | null = null;
 
+// Cache for prefetched stop data
+const prefetchCache = new Map<string, { data: { name: string; lat: number; lng: number; images: { url: string; distance_m: number }[] }; timestamp: number }>();
+const inFlightRequests = new Map<string, Promise<void>>();
+
 useInitOnResize(
   () => miniMapWrapEl.value!,
   () => miniMapEl.value!,
@@ -89,13 +93,16 @@ useInitOnResize(
     }).setView([51.0, 4.3], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(miniMap);
     window.addEventListener("keydown", onKey);
-    loadStop();
+    void loadStop();
   },
 );
 
 onUnmounted(() => {
   window.removeEventListener("keydown", onKey);
   miniMap?.remove();
+  // Clean up caches
+  prefetchCache.clear();
+  inFlightRequests.clear();
 });
 
 watch(currentIndex, loadStop);
@@ -107,14 +114,34 @@ async function loadStop() {
   stopName.value = "Loading…";
   images.value = [];
 
-  const [stopRes, imgRes] = await Promise.all([
-    api.api.stops({ id }).get(),
-    api.api.stops({ id }).images.get(),
-  ]);
+  // Check cache first (30 second TTL)
+  const cached = prefetchCache.get(id);
+  if (cached && Date.now() - cached.timestamp < 30000) {
+    const { data } = cached;
+    stopName.value = data.name;
+    images.value = data.images;
+
+    if (miniMap) {
+      miniMap.setView([data.lat, data.lng], 15);
+      stopMarker?.remove();
+      stopMarker = L.marker([data.lat, data.lng]).addTo(miniMap);
+    }
+
+    // Clean up old cache entries
+    cleanupCache();
+
+    // Prefetch next stop
+    prefetchNext(currentIndex.value + 1);
+    return;
+  }
+
+  // Not in cache, fetch it
+  const stopRes = await api.stops({ id }).get();
 
   if (stopRes.data) {
-    stopName.value = stopRes.data.name;
-    const { lat, lng } = stopRes.data;
+    const { name, lat, lng, images: imgs } = stopRes.data;
+    stopName.value = name;
+    images.value = imgs;
 
     if (miniMap) {
       miniMap.setView([lat, lng], 15);
@@ -123,15 +150,41 @@ async function loadStop() {
     }
   }
 
-  if (imgRes.data) {
-    images.value = imgRes.data.images;
+  // Prefetch next stop
+  prefetchNext(currentIndex.value + 1);
+}
+
+function cleanupCache() {
+  const now = Date.now();
+  for (const [id, entry] of prefetchCache.entries()) {
+    if (now - entry.timestamp > 30000) {
+      prefetchCache.delete(id);
+    }
+  }
+}
+
+function prefetchNext(idx: number) {
+  const nextId = props.queue[idx];
+  if (!nextId) return;
+
+  // Check if already cached or in-flight
+  if (prefetchCache.has(nextId) || inFlightRequests.has(nextId)) {
+    return;
   }
 
-  // Prefetch next stop's images while user decides
-  const nextId = props.queue[currentIndex.value + 1];
-  if (nextId) {
-    api.api.stops({ id: nextId }).images.get();
-  }
+  // Start prefetch
+  const promise = api.stops({ id: nextId }).get().then((res) => {
+    if (res.data) {
+      const { name, lat, lng, images: imgs } = res.data;
+      prefetchCache.set(nextId, {
+        data: { name, lat, lng, images: imgs },
+        timestamp: Date.now(),
+      });
+    }
+    inFlightRequests.delete(nextId);
+  });
+
+  inFlightRequests.set(nextId, promise);
 }
 
 function skip() {

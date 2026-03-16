@@ -3,7 +3,7 @@ import { onMounted } from "vue";
 export function useInitOnResize(
   wrapEl: () => HTMLDivElement,
   mapEl: () => HTMLDivElement,
-  init: (h: number) => void,
+  init: () => void | Promise<void>,
 ) {
   onMounted(() => {
     let initialized = false;
@@ -13,7 +13,7 @@ export function useInitOnResize(
       initialized = true;
       observer.disconnect();
       mapEl().style.height = h + "px";
-      init(h);
+      void init();
     });
     observer.observe(wrapEl());
   });

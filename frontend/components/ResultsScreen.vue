@@ -34,7 +34,7 @@ const stopNames = ref<string[]>([]);
 onMounted(async () => {
   const names = await Promise.all(
     props.matchIds.map(async (id) => {
-      const { data } = await api.api.stops({ id }).get();
+      const { data } = await api.stops({ id }).get();
       return data?.name ?? id;
     })
   );

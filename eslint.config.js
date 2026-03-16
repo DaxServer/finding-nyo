@@ -28,6 +28,21 @@ export default tseslint.config(
       "vue/html-self-closing": ["warn", { html: { void: "never" } }],
     },
   },
+  // Type-aware linting for TypeScript files
+  {
+    files: ["**/*.ts", "**/*.vue"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        extraFileExtensions: [".vue"],
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+    },
+  },
   {
     ignores: ["public/", "node_modules/"],
   }
