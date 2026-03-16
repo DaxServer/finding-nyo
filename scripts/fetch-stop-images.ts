@@ -43,7 +43,7 @@ async function fetchImages(stop: StopCoord): Promise<void> {
   const south = lat - BBOX_DELTA;
   const north = lat + BBOX_DELTA;
 
-  const url = `${MAPILLARY_API}?fields=id,thumb_2048_url,computed_geometry&bbox=${west},${south},${east},${north}&limit=${IMAGE_LIMIT}&access_token=${TOKEN}`;
+  const url = `${MAPILLARY_API}?fields=id,thumb_256_url,thumb_1024_url,thumb_2048_url,thumb_original_url,computed_geometry&bbox=${west},${south},${east},${north}&limit=${IMAGE_LIMIT}&access_token=${TOKEN}`;
 
   try {
     const res = await fetch(url);
@@ -53,14 +53,24 @@ async function fetchImages(stop: StopCoord): Promise<void> {
     }
 
     const data = (await res.json()) as {
-      data: { id: string; thumb_2048_url: string; computed_geometry: { coordinates: [number, number] } }[];
+      data: {
+        id: string;
+        thumb_256_url: string | null;
+        thumb_1024_url: string | null;
+        thumb_2048_url: string | null;
+        thumb_original_url: string | null;
+        computed_geometry: { coordinates: [number, number] } | null;
+      }[];
     };
 
     const images = (data.data ?? [])
+      .filter((img) => img.computed_geometry != null)
       .map((img) => {
-        const [imgLng, imgLat] = img.computed_geometry.coordinates;
-        return { url: img.thumb_2048_url, distance_m: haversineM(lat, lng, imgLat!, imgLng!) };
+        const [imgLng, imgLat] = img.computed_geometry!.coordinates;
+        const url = img.thumb_2048_url ?? img.thumb_1024_url ?? img.thumb_256_url ?? img.thumb_original_url;
+        return { url, distance_m: haversineM(lat, lng, imgLat!, imgLng!) };
       })
+      .filter((img) => img.url != null)
       .sort((a, b) => a.distance_m - b.distance_m)
       .slice(0, RESULT_COUNT);
 
