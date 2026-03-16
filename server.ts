@@ -17,7 +17,7 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 86400 * 1000; // 24 hours
+const CACHE_TTL = 43200 * 1000; // 12 hours (Mapillary URLs expire in ~24h)
 
 function getCacheKey(path: string, query?: Record<string, unknown>): string {
   if (query && Object.keys(query).length > 0) {
@@ -164,16 +164,16 @@ export const app = new Elysia()
     },
   })
 
-  .get("/api/stops/:id", async ({ cachedData, params, status }) => {
+  .get("/api/stops/:id", async ({ cachedData, params, status, log }) => {
     if (cachedData) return cachedData as typeof StopResponse.static;
 
-    const stop = await StopService.findById(params.id);
+    const stop = await StopService.findById(params.id, log);
     if (!stop) {
       return status(404, { error: `Stop not found: ${params.id}` });
     }
     return stop;
   }, {
-    params: t.Object({ id: t.String() }),
+    params: t.Object({ id: t.Numeric() }),
     response: {
       200: StopResponse,
       404: ErrorResponse,

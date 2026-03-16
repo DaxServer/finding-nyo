@@ -97,21 +97,38 @@ async function createSchema(): Promise<void> {
   console.log(`Connected to: ${dbInfo?.host}:${dbInfo?.port}/${dbInfo?.db} (schema: ${schemaInfo?.schema})`);
   console.log(`PostgreSQL: ${dbInfo?.pg_version}`);
 
+  console.log("Dropping existing tables ...");
+  await sql`DROP TABLE IF EXISTS stop_images`;
+  await sql`DROP TABLE IF EXISTS tram_stops`;
+  await sql`DROP TABLE IF EXISTS stops`;
   console.log("Creating schema ...");
   console.log("  Enabling PostGIS extension ...");
   await sql`CREATE EXTENSION IF NOT EXISTS postgis`;
   console.log("  PostGIS extension OK");
   await sql`
-    CREATE TABLE IF NOT EXISTS stops (
-      stop_id   TEXT PRIMARY KEY,
-      stop_code TEXT,
-      name      TEXT NOT NULL,
-      location  GEOGRAPHY(POINT, 4326) NOT NULL
+    CREATE TABLE stops (
+      stop_id                INTEGER PRIMARY KEY,
+      stop_code              TEXT,
+      name                   TEXT NOT NULL,
+      location               GEOGRAPHY(POINT, 4326) NOT NULL,
+      nearest_tram_stop_m    DOUBLE PRECISION,
+      images_last_fetched_at TIMESTAMPTZ
     )
   `;
+  await sql`
+    CREATE TABLE stop_images (
+      stop_id            INTEGER NOT NULL REFERENCES stops(stop_id) ON DELETE CASCADE,
+      mapillary_image_id BIGINT NOT NULL,
+      url                TEXT NOT NULL,
+      distance_m         DOUBLE PRECISION NOT NULL,
+      fetched_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX stop_images_stop_id_idx ON stop_images (stop_id)`;
+  await sql`CREATE UNIQUE INDEX stop_images_stop_mapillary_idx ON stop_images (stop_id, mapillary_image_id)`;
   console.log("  stops table OK");
   await sql`
-    CREATE INDEX IF NOT EXISTS stops_location_idx ON stops USING GIST (location)
+    CREATE INDEX stops_location_idx ON stops USING GIST (location)
   `;
   console.log("  stops_location_idx OK");
 }

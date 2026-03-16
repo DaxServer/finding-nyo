@@ -6,22 +6,33 @@
     <div class="flex-1 flex flex-col overflow-y-auto sm:flex-row sm:overflow-hidden bg-gray-900">
       <!-- Images: stacked on mobile, 2×2 grid on desktop -->
       <div class="flex flex-col gap-1 p-1 sm:flex-1 sm:grid sm:grid-cols-2 sm:grid-rows-2">
-        <div v-for="(img, i) in images" :key="i" class="relative overflow-hidden bg-gray-700">
-          <img
-            :src="img.url" class="w-full aspect-video sm:aspect-auto sm:h-full object-cover"
-            :alt="`Street view ${i + 1}`"
+        <!-- Skeleton tiles while API call is in flight -->
+        <template v-if="loading">
+          <div
+            v-for="i in 4" :key="`sk-${i}`"
+            class="aspect-video sm:aspect-auto skeleton"
+          />
+        </template>
+        <template v-else>
+          <div v-for="(img, i) in images" :key="img.url" class="relative overflow-hidden bg-gray-700">
+            <img
+              :src="img.url" class="w-full aspect-video sm:aspect-auto sm:h-full object-cover"
+              :alt="`Street view ${i + 1}`"
+              @load="onImageLoad(i)"
+            >
+            <div v-if="!loadedIndices.has(i)" class="skeleton absolute inset-0" />
+            <span v-if="loadedIndices.has(i)" class="absolute bottom-1 right-1 bg-black/60 text-xs px-1 rounded">
+              {{ img.distance_m.toFixed(0) }}m
+            </span>
+          </div>
+          <!-- Placeholder cells when fewer than 4 images -->
+          <div
+            v-for="i in Math.max(0, 4 - images.length)" :key="`ph-${i}`"
+            class="aspect-video sm:aspect-auto bg-gray-700 flex items-center justify-center text-gray-500 text-sm"
           >
-          <span class="absolute bottom-1 right-1 bg-black/60 text-xs px-1 rounded">
-            {{ img.distance_m.toFixed(0) }}m
-          </span>
-        </div>
-        <!-- Placeholder cells when fewer than 4 images -->
-        <div
-          v-for="i in Math.max(0, 4 - images.length)" :key="`ph-${i}`"
-          class="aspect-video sm:aspect-auto bg-gray-700 flex items-center justify-center text-gray-500 text-sm"
-        >
-          No image
-        </div>
+            No image
+          </div>
+        </template>
       </div>
 
       <!-- Mini-map: bottom of scroll on mobile, sidebar on desktop -->
@@ -52,13 +63,15 @@ import { api } from "../api";
 import { useInitOnResize } from "../composables/useInitOnResize";
 import AppHeader from "./AppHeader.vue";
 
-const props = defineProps<{ queue: string[] }>();
-const emit = defineEmits<{ done: [matchedIds: string[]] }>();
+const props = defineProps<{ queue: number[] }>();
+const emit = defineEmits<{ done: [matchedIds: number[]] }>();
 
 const currentIndex = ref(0);
 const stopName = ref("Loading…");
 const images = ref<{ url: string; distance_m: number }[]>([]);
-const matchedIds = ref<string[]>([]);
+const loading = ref(true);
+const loadedIndices = ref(new Set<number>());
+const matchedIds = ref<number[]>([]);
 const miniMapEl = ref<HTMLDivElement | null>(null);
 const miniMapWrapEl = ref<HTMLDivElement | null>(null);
 const currentStopLat = ref<number | null>(null);
@@ -68,8 +81,8 @@ let miniMap: L.Map | null = null;
 let stopMarker: L.Marker | null = null;
 
 // Cache for prefetched stop data
-const prefetchCache = new Map<string, { data: { name: string; lat: number; lng: number; images: { url: string; distance_m: number }[] }; timestamp: number }>();
-const inFlightRequests = new Map<string, Promise<void>>();
+const prefetchCache = new Map<number, { data: { name: string; lat: number; lng: number; images: { url: string; distance_m: number }[] }; timestamp: number }>();
+const inFlightRequests = new Map<number, Promise<void>>();
 
 useInitOnResize(
   () => miniMapWrapEl.value!,
@@ -117,6 +130,8 @@ async function loadStop() {
 
   stopName.value = "Loading…";
   images.value = [];
+  loading.value = true;
+  loadedIndices.value = new Set();
 
   // Check cache first (30 second TTL)
   const cached = prefetchCache.get(id);
@@ -126,18 +141,18 @@ async function loadStop() {
     images.value = data.images;
     currentStopLat.value = data.lat;
     currentStopLng.value = data.lng;
+    loading.value = false;
     syncMiniMapToCurrentStop();
-
-    // Clean up old cache entries
     cleanupCache();
-
-    // Prefetch next stop
     prefetchNext(currentIndex.value + 1);
     return;
   }
 
   // Not in cache, fetch it
   const stopRes = await api.stops({ id }).get();
+
+  // Discard response if user has already moved to a different stop
+  if (props.queue[currentIndex.value] !== id) return;
 
   if (stopRes.data) {
     const { name, lat, lng, images: imgs } = stopRes.data;
@@ -147,8 +162,8 @@ async function loadStop() {
     currentStopLng.value = lng;
     syncMiniMapToCurrentStop();
   }
+  loading.value = false;
 
-  // Prefetch next stop
   prefetchNext(currentIndex.value + 1);
 }
 
@@ -185,6 +200,10 @@ function prefetchNext(idx: number) {
   inFlightRequests.set(nextId, promise);
 }
 
+function onImageLoad(i: number) {
+  loadedIndices.value = new Set([...loadedIndices.value, i]);
+}
+
 function skip() {
   advance();
 }
@@ -199,6 +218,9 @@ function advance() {
   if (currentIndex.value + 1 >= props.queue.length) {
     emit("done", matchedIds.value);
   } else {
+    loading.value = true;
+    images.value = [];
+    loadedIndices.value = new Set();
     currentIndex.value++;
   }
 }

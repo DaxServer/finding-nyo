@@ -1,7 +1,7 @@
 import { t } from 'elysia'
 
 export const StopResponse = t.Object({
-  stop_id: t.String(),
+  stop_id: t.Number(),
   name: t.String(),
   lat: t.Number(),
   lng: t.Number(),
@@ -12,7 +12,7 @@ export const StopResponse = t.Object({
 })
 
 export const QueueResponse = t.Object({
-  stops: t.Array(t.String())
+  stops: t.Array(t.Number())
 })
 
 export const LocationsResponse = t.Object({

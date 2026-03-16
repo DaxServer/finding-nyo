@@ -13,16 +13,16 @@ import ResultsScreen from "./components/ResultsScreen.vue";
 type Screen = "setup" | "game" | "results";
 
 const screen = ref<Screen>("setup");
-const queue = ref<string[]>([]);
-const matches = ref<string[]>([]);
+const queue = ref<number[]>([]);
+const matches = ref<number[]>([]);
 
-function onStart(stops: string[]) {
+function onStart(stops: number[]) {
   queue.value = stops;
   matches.value = [];
   screen.value = "game";
 }
 
-function onDone(matchedIds: string[]) {
+function onDone(matchedIds: number[]) {
   matches.value = matchedIds;
   screen.value = "results";
 }
