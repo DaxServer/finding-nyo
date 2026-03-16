@@ -1,7 +1,7 @@
 <template>
   <div class="h-screen flex flex-col">
     <!-- Title -->
-    <AppHeader />
+    <AppHeader :right="headerRight" />
 
     <!-- Map -->
     <div ref="mapWrapEl" class="flex-1 relative">
@@ -41,8 +41,15 @@
           {{ pin ? `Pin: ${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)}` : "Click the map to place a pin" }}
         </span>
         <button
+          class="px-6 py-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-40 disabled:cursor-not-allowed rounded font-semibold"
+          :disabled="!pin && radiusM === 10000 && minTramM === 100"
+          @click="reset"
+        >
+          Reset
+        </button>
+        <button
           class="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed rounded font-semibold"
-          :disabled="!pin || loading"
+          :disabled="!pin || loading || (!!pin && stopCount === 0)"
           @click="startGame"
         >
           {{ loading ? "Loading…" : "Start" }}
@@ -54,9 +61,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from "vue";
+import { ref, watch, computed, onUnmounted } from "vue";
 import AppHeader from "./AppHeader.vue";
 import L from "leaflet";
+import "leaflet.markercluster";
 import { api } from "../api";
 import { useInitOnResize } from "../composables/useInitOnResize";
 
@@ -70,14 +78,55 @@ const pin = ref<{ lat: number; lng: number } | null>(null);
 const loading = ref(false);
 const error = ref("");
 
+type Location = { lat: number; lng: number; nearest_tram_stop_m: number | null };
+
 let map: L.Map | null = null;
 let marker: L.Marker | null = null;
 let circle: L.Circle | null = null;
+let clusterGroup: L.MarkerClusterGroup | null = null;
+let allLocations: Location[] = [];
+
+const stopCount = ref(0);
+const locationsLoaded = ref(false);
+const headerRight = computed(() => {
+  if (!locationsLoaded.value) return undefined;
+  if (pin.value && stopCount.value === 0) return "No stops in this area";
+  return `${stopCount.value.toLocaleString()} stops`;
+});
+
+function refreshCluster() {
+  if (!clusterGroup) return;
+  clusterGroup.clearLayers();
+
+  let filtered = allLocations;
+  const p = pin.value;
+  if (p) {
+    const pinLatLng = L.latLng(p.lat, p.lng);
+    const r = radiusM.value;
+    const tramMin = minTramM.value;
+    filtered = allLocations.filter((loc) => {
+      const dist = pinLatLng.distanceTo([loc.lat, loc.lng]);
+      return dist <= r && (loc.nearest_tram_stop_m ?? Infinity) >= tramMin;
+    });
+  }
+
+  stopCount.value = filtered.length;
+  clusterGroup.addLayers(filtered.map((loc) => L.circleMarker([loc.lat, loc.lng], { radius: 4 })));
+}
+
+function pinIcon(): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:16px;height:16px;border-radius:50%;background:#ef4444;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.5)"></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  });
+}
 
 useInitOnResize(
   () => mapWrapEl.value!,
   () => mapEl.value!,
-  () => {
+  async () => {
     map = L.map(mapEl.value!, { zoomControl: true }).setView([51.0, 4.3], 9);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "© OpenStreetMap contributors",
@@ -86,6 +135,15 @@ useInitOnResize(
     map.on("click", (e) => {
       pin.value = { lat: e.latlng.lat, lng: e.latlng.lng };
     });
+
+    const { data } = await api.api.stops.locations.get();
+    if (!data || !map) return;
+
+    allLocations = data.locations;
+    locationsLoaded.value = true;
+    clusterGroup = L.markerClusterGroup({ chunkedLoading: true });
+    refreshCluster();
+    clusterGroup.addTo(map);
   },
 );
 
@@ -93,18 +151,31 @@ onUnmounted(() => {
   map?.remove();
 });
 
-watch(
-  [pin, radiusM],
-  ([p, r]) => {
-    if (!map || !p) return;
+watch([pin, radiusM], ([p, r]) => {
+  if (!map) return;
 
-    if (marker) marker.remove();
-    if (circle) circle.remove();
+  if (marker) { marker.remove(); marker = null; }
+  if (circle) { circle.remove(); circle = null; }
 
-    marker = L.marker([p.lat, p.lng]).addTo(map);
-    circle = L.circle([p.lat, p.lng], { radius: r, color: "#3b82f6", fillOpacity: 0.1 }).addTo(map);
-  }
-);
+  if (!p) return;
+
+  marker = L.marker([p.lat, p.lng], { icon: pinIcon() }).addTo(map);
+  circle = L.circle([p.lat, p.lng], { radius: r, color: "#3b82f6", fillOpacity: 0.1 }).addTo(map);
+
+  const bounds = circle.getBounds();
+  const zoom = Math.floor(map.getBoundsZoom(bounds));
+  map.setView([p.lat, p.lng], zoom);
+});
+
+watch([pin, radiusM, minTramM], refreshCluster);
+
+function reset() {
+  pin.value = null;
+  radiusM.value = 10000;
+  minTramM.value = 100;
+  error.value = "";
+  map?.setView([51.0, 4.3], 9);
+}
 
 async function startGame() {
   if (!pin.value) return;
