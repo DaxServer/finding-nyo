@@ -82,14 +82,14 @@ await Bun.$`rm -f ${tripIdFile}`;
 console.log("Creating tram_stops table ...");
 await sql`CREATE EXTENSION IF NOT EXISTS postgis`;
 await sql`
-  CREATE TABLE IF NOT EXISTS tram_stops (
-    stop_id   TEXT PRIMARY KEY,
+  CREATE TABLE tram_stops (
+    stop_id   INTEGER PRIMARY KEY REFERENCES stops(stop_id) ON DELETE CASCADE,
     stop_code TEXT,
     name      TEXT NOT NULL,
     location  GEOGRAPHY(POINT, 4326) NOT NULL
   )
 `;
-await sql`CREATE INDEX IF NOT EXISTS tram_stops_location_idx ON tram_stops USING GIST (location)`;
+await sql`CREATE INDEX tram_stops_location_idx ON tram_stops USING GIST (location)`;
 
 console.log("Inserting tram stops from existing stops table ...");
 const ids = [...tramStopIds];
@@ -104,7 +104,7 @@ for (let i = 0; i < ids.length; i += BATCH) {
     INSERT INTO tram_stops (stop_id, stop_code, name, location)
     SELECT stop_id, stop_code, name, location
     FROM stops
-    WHERE stop_id = ANY(${pgArray}::text[])
+    WHERE stop_id = ANY(${pgArray}::integer[])
     ON CONFLICT (stop_id) DO NOTHING
   `;
   inserted += batch.length;
@@ -114,9 +114,6 @@ console.log("\nDone inserting.");
 
 const tramCount = await sql`SELECT COUNT(*) FROM tram_stops`;
 console.log(`tram_stops table has ${tramCount[0]!.count} rows`);
-
-console.log("Adding nearest_tram_stop_m column to stops table ...");
-await sql`ALTER TABLE stops ADD COLUMN IF NOT EXISTS nearest_tram_stop_m DOUBLE PRECISION`;
 
 console.log("Computing nearest tram stop distance for all bus stops (PostGIS KNN) ...");
 await sql`

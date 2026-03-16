@@ -70,7 +70,7 @@ import "leaflet.markercluster";
 import { api } from "../api";
 import { useInitOnResize } from "../composables/useInitOnResize";
 
-const emit = defineEmits<{ start: [stops: string[]] }>();
+const emit = defineEmits<{ start: [stops: number[]] }>();
 
 const mapEl = ref<HTMLDivElement | null>(null);
 const mapWrapEl = ref<HTMLDivElement | null>(null);

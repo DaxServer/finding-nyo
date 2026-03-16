@@ -26,7 +26,7 @@
 import { ref, onMounted } from "vue";
 import { api } from "../api";
 
-const props = defineProps<{ matchIds: string[] }>();
+const props = defineProps<{ matchIds: number[] }>();
 const emit = defineEmits<{ restart: [] }>();
 
 const stopNames = ref<string[]>([]);
@@ -35,7 +35,7 @@ onMounted(async () => {
   const names = await Promise.all(
     props.matchIds.map(async (id) => {
       const { data } = await api.stops({ id }).get();
-      return data?.name ?? id;
+      return data?.name ?? String(id);
     })
   );
   stopNames.value = names;
