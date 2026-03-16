@@ -6,14 +6,9 @@
     <div class="flex-1 flex flex-col overflow-y-auto sm:flex-row sm:overflow-hidden bg-gray-900">
       <!-- Images: stacked on mobile, 2×2 grid on desktop -->
       <div class="flex flex-col gap-1 p-1 sm:flex-1 sm:grid sm:grid-cols-2 sm:grid-rows-2">
-        <div
-          v-for="(img, i) in images"
-          :key="i"
-          class="relative overflow-hidden bg-gray-700"
-        >
+        <div v-for="(img, i) in images" :key="i" class="relative overflow-hidden bg-gray-700">
           <img
-            :src="img.url"
-            class="w-full aspect-video sm:aspect-auto sm:h-full object-cover"
+            :src="img.url" class="w-full aspect-video sm:aspect-auto sm:h-full object-cover"
             :alt="`Street view ${i + 1}`"
           >
           <span class="absolute bottom-1 right-1 bg-black/60 text-xs px-1 rounded">
@@ -22,8 +17,7 @@
         </div>
         <!-- Placeholder cells when fewer than 4 images -->
         <div
-          v-for="i in Math.max(0, 4 - images.length)"
-          :key="`ph-${i}`"
+          v-for="i in Math.max(0, 4 - images.length)" :key="`ph-${i}`"
           class="aspect-video sm:aspect-auto bg-gray-700 flex items-center justify-center text-gray-500 text-sm"
         >
           No image
@@ -38,10 +32,7 @@
 
     <!-- Footer -->
     <div class="bg-gray-800 flex shrink-0">
-      <button
-        class="flex-1 py-5 sm:py-3 bg-red-700 hover:bg-red-600 font-semibold text-base sm:text-sm"
-        @click="skip"
-      >
+      <button class="flex-1 py-5 sm:py-3 bg-red-700 hover:bg-red-600 font-semibold text-base sm:text-sm" @click="skip">
         ✕ Not this one <span class="hidden sm:inline">[N]</span>
       </button>
       <button
@@ -55,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from "vue";
+import { ref, watch, onMounted, onUnmounted } from "vue";
 import L from "leaflet";
 import { api } from "../api";
 import { useInitOnResize } from "../composables/useInitOnResize";
@@ -70,6 +61,8 @@ const images = ref<{ url: string; distance_m: number }[]>([]);
 const matchedIds = ref<string[]>([]);
 const miniMapEl = ref<HTMLDivElement | null>(null);
 const miniMapWrapEl = ref<HTMLDivElement | null>(null);
+const currentStopLat = ref<number | null>(null);
+const currentStopLng = ref<number | null>(null);
 
 let miniMap: L.Map | null = null;
 let stopMarker: L.Marker | null = null;
@@ -93,9 +86,13 @@ useInitOnResize(
     }).setView([51.0, 4.3], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(miniMap);
     window.addEventListener("keydown", onKey);
-    void loadStop();
+    syncMiniMapToCurrentStop();
   },
 );
+
+onMounted(() => {
+  void loadStop();
+});
 
 onUnmounted(() => {
   window.removeEventListener("keydown", onKey);
@@ -106,6 +103,13 @@ onUnmounted(() => {
 });
 
 watch(currentIndex, loadStop);
+
+function syncMiniMapToCurrentStop() {
+  if (!miniMap || currentStopLat.value === null || currentStopLng.value === null) return;
+  miniMap.setView([currentStopLat.value, currentStopLng.value], 15);
+  stopMarker?.remove();
+  stopMarker = L.marker([currentStopLat.value, currentStopLng.value]).addTo(miniMap);
+}
 
 async function loadStop() {
   const id = props.queue[currentIndex.value];
@@ -120,12 +124,9 @@ async function loadStop() {
     const { data } = cached;
     stopName.value = data.name;
     images.value = data.images;
-
-    if (miniMap) {
-      miniMap.setView([data.lat, data.lng], 15);
-      stopMarker?.remove();
-      stopMarker = L.marker([data.lat, data.lng]).addTo(miniMap);
-    }
+    currentStopLat.value = data.lat;
+    currentStopLng.value = data.lng;
+    syncMiniMapToCurrentStop();
 
     // Clean up old cache entries
     cleanupCache();
@@ -142,12 +143,9 @@ async function loadStop() {
     const { name, lat, lng, images: imgs } = stopRes.data;
     stopName.value = name;
     images.value = imgs;
-
-    if (miniMap) {
-      miniMap.setView([lat, lng], 15);
-      stopMarker?.remove();
-      stopMarker = L.marker([lat, lng]).addTo(miniMap);
-    }
+    currentStopLat.value = lat;
+    currentStopLng.value = lng;
+    syncMiniMapToCurrentStop();
   }
 
   // Prefetch next stop
