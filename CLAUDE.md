@@ -92,3 +92,4 @@ bun scripts/fetch-stop-images.ts    # Mapillary images (sequential, resumable)
 - **Elysia 404**: Use `return status(404, payload)` (from handler context) — not `set.status`. `return` skips `onError`; `throw` goes through it.
 - **PostGIS search_path**: If the DB role's `search_path` doesn't include `public`, `geography` type won't resolve even after `CREATE EXTENSION postgis` succeeds. Configure `search_path` at the role level (e.g. in OpenTofu) to include `public`.
 - **`sql.end()` in ingest scripts**: Ends the shared `Bun.sql` pool — fatal when scripts are `await import()`-ed sequentially by `ingest-all.ts`. Use `if (import.meta.main) await sql.end()` in each script.
+- **Mapillary null fields**: `computed_geometry` and thumbnail fields (`thumb_256_url`, `thumb_1024_url`, `thumb_2048_url`, `thumb_original_url`) can be `null` in API responses even when explicitly requested. Filter before mapping.
