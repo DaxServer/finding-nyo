@@ -128,25 +128,27 @@ function pinIcon(): L.DivIcon {
 useInitOnResize(
   () => mapWrapEl.value!,
   () => mapEl.value!,
-  async () => {
-    map = L.map(mapEl.value!, { zoomControl: true }).setView([51.0, 4.3], 9);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
-      maxZoom: 20,
-    }).addTo(map);
-    map.on("click", (e) => {
-      pin.value = { lat: e.latlng.lat, lng: e.latlng.lng };
-    });
+  () => {
+    void (async () => {
+      map = L.map(mapEl.value!, { zoomControl: true }).setView([51.0, 4.3], 9);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+        maxZoom: 20,
+      }).addTo(map);
+      map.on("click", (e) => {
+        pin.value = { lat: e.latlng.lat, lng: e.latlng.lng };
+      });
 
-    const { data } = await api.api.stops.locations.get();
-    if (!data || !map) return;
+      const { data } = await api.stops.locations.get();
+      if (!data || !map) return;
 
-    allLocations = data.locations;
-    locationsLoaded.value = true;
-    clusterGroup = L.markerClusterGroup({ chunkedLoading: true });
-    refreshCluster();
-    clusterGroup.addTo(map);
-    fitAll();
+      allLocations = data.locations;
+      locationsLoaded.value = true;
+      clusterGroup = L.markerClusterGroup({ chunkedLoading: true });
+      refreshCluster();
+      clusterGroup.addTo(map);
+      fitAll();
+    })();
   },
 );
 
@@ -191,12 +193,12 @@ async function startGame() {
   loading.value = true;
   error.value = "";
 
-  const { data, error: err } = await api.api.queue.get({
+  const { data, error: err } = await api.queue.get({
     query: {
-      lat: String(pin.value.lat),
-      lng: String(pin.value.lng),
-      radius_m: String(radiusM.value),
-      min_tram_m: String(minTramM.value),
+      lat: pin.value.lat,
+      lng: pin.value.lng,
+      radius_m: radiusM.value,
+      min_tram_m: minTramM.value,
     },
   });
 
