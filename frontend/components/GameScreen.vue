@@ -28,9 +28,12 @@
           <!-- Placeholder cells when fewer than 4 images -->
           <div
             v-for="i in Math.max(0, 4 - images.length)" :key="`ph-${i}`"
-            class="aspect-video sm:aspect-auto bg-gray-700 flex items-center justify-center text-gray-500 text-sm"
+            class="aspect-video sm:aspect-auto bg-gray-600 flex flex-col items-center justify-center gap-2 text-gray-300"
           >
-            No image
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V9.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+            </svg>
+            <span class="text-sm">No nearby images</span>
           </div>
         </template>
       </div>
@@ -60,6 +63,7 @@
 import { ref, watch, onMounted, onUnmounted } from "vue";
 import L from "leaflet";
 import { api } from "../api";
+import type { Stop } from "../../src/models/response";
 import { useInitOnResize } from "../composables/useInitOnResize";
 import AppHeader from "./AppHeader.vue";
 
@@ -79,9 +83,10 @@ const currentStopLng = ref<number | null>(null);
 
 let miniMap: L.Map | null = null;
 let stopMarker: L.Marker | null = null;
+let prefetchAborted = false;
 
 // Cache for prefetched stop data
-const prefetchCache = new Map<number, { data: { name: string; lat: number; lng: number; images: { url: string; distance_m: number }[] }; timestamp: number }>();
+const prefetchCache = new Map<number, { data: Stop; timestamp: number }>();
 const inFlightRequests = new Map<number, Promise<void>>();
 
 useInitOnResize(
@@ -105,12 +110,13 @@ useInitOnResize(
 
 onMounted(() => {
   void loadStop();
+  void prefetchAll();
 });
 
 onUnmounted(() => {
+  prefetchAborted = true;
   window.removeEventListener("keydown", onKey);
   miniMap?.remove();
-  // Clean up caches
   prefetchCache.clear();
   inFlightRequests.clear();
 });
@@ -143,8 +149,6 @@ async function loadStop() {
     currentStopLng.value = data.lng;
     loading.value = false;
     syncMiniMapToCurrentStop();
-    cleanupCache();
-    prefetchNext(currentIndex.value + 1);
     return;
   }
 
@@ -163,41 +167,24 @@ async function loadStop() {
     syncMiniMapToCurrentStop();
   }
   loading.value = false;
-
-  prefetchNext(currentIndex.value + 1);
 }
 
-function cleanupCache() {
-  const now = Date.now();
-  for (const [id, entry] of prefetchCache.entries()) {
-    if (now - entry.timestamp > 30000) {
-      prefetchCache.delete(id);
-    }
+async function prefetchAll() {
+  for (let i = 1; i < props.queue.length; i++) {
+    if (prefetchAborted) return;
+    const id = props.queue[i];
+    if (!id || prefetchCache.has(id) || inFlightRequests.has(id)) continue;
+
+    const promise = api.stops({ id }).get().then((res) => {
+      if (res.data) {
+        prefetchCache.set(id, { data: res.data, timestamp: Date.now() });
+      }
+      inFlightRequests.delete(id);
+    });
+
+    inFlightRequests.set(id, promise);
+    await promise;
   }
-}
-
-function prefetchNext(idx: number) {
-  const nextId = props.queue[idx];
-  if (!nextId) return;
-
-  // Check if already cached or in-flight
-  if (prefetchCache.has(nextId) || inFlightRequests.has(nextId)) {
-    return;
-  }
-
-  // Start prefetch
-  const promise = api.stops({ id: nextId }).get().then((res) => {
-    if (res.data) {
-      const { name, lat, lng, images: imgs } = res.data;
-      prefetchCache.set(nextId, {
-        data: { name, lat, lng, images: imgs },
-        timestamp: Date.now(),
-      });
-    }
-    inFlightRequests.delete(nextId);
-  });
-
-  inFlightRequests.set(nextId, promise);
 }
 
 function onImageLoad(i: number) {

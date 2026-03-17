@@ -91,6 +91,8 @@ Images are fetched on demand at serve time — no image ingestion step required.
 - **Prefetching with cache**: Use `Map` for cache and `in-flight` requests to prevent duplicate fetches. Check cache first, then fetch if needed. Store results with timestamp for TTL-based expiration.
 - **Cache cleanup**: Clear Maps in `onUnmounted` to prevent memory leaks. Implement cleanup function to remove stale entries (e.g., 30s TTL).
 - **Race condition prevention**: Track in-flight requests in a Map; don't start new request if one is already pending for the same key.
+- **Eden Treaty static types**: `Stop`, `Queue`, `Locations` are exported from `src/models/response.ts` (`typeof Schema.static`). Import these in frontend components instead of manually re-typing response shapes.
+- **Aborting background async loops**: Use a `let aborted = false` module-level flag; check `if (aborted) return` at the top of each loop iteration; set `aborted = true` in `onUnmounted` to stop sequential background fetches cleanly.
 
 ## Environment Variables
 
