@@ -175,12 +175,15 @@ async function prefetchAll() {
     const id = props.queue[i];
     if (!id || prefetchCache.has(id) || inFlightRequests.has(id)) continue;
 
-    const promise = api.stops({ id }).get().then((res) => {
-      if (res.data) {
-        prefetchCache.set(id, { data: res.data, timestamp: Date.now() });
-      }
-      inFlightRequests.delete(id);
-    });
+    const promise = api.stops({ id }).get()
+      .then((res) => {
+        if (res.data) {
+          prefetchCache.set(id, { data: res.data, timestamp: Date.now() });
+        }
+      })
+      .finally(() => {
+        inFlightRequests.delete(id);
+      });
 
     inFlightRequests.set(id, promise);
     await promise;
